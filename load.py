@@ -17,9 +17,9 @@ class Nanonisfile:
     
     ATTRIBUTES
     ---------------------------------------------------------------------------
-    name : (str) ->  full path file name
+    _ffname : (str) ->  full path file name
     
-    dataflag : (int) -> index of the bit separeting header from data
+    _dataflag : (int) -> index of the bit separeting header from data
     
     metadata : {'str': 'str/int/float'} -> dictionary of metadata 
         such as file size, file name, file directory, file type.
@@ -31,33 +31,29 @@ class Nanonisfile:
     data {'str': 'numpy 1D-array'} -> dictionary of data recorded by nanonis
         easily covertible in pandas data frame.
         
-    processed data {'str': 'numpy 1D-array'} -> dictionary of processed data
-        easily covertible in pandas data frame. For future development.
-        
     """
     
     global nanonis_flags
     nanonis_flags = {'.sxm' :'SCANIT_END', '.dat':'[DATA]'}
     
     def __init__(self, fpfname):
-        self.name = fpfname
+        self._ffname = fpfname
         self.metadata = self._get_metadata()
-        self.dataflag = []
+        self._dataflag = None
         self.header = self._get_header()
         self.data = self._get_data()
-        self.processeddata = self._process_data()
         
     def _get_metadata(self):
-        directory_fname, base_fname = os.path.split(self.name)
-        size_f = os.path.getsize(self.name)
-        _, type_f = os.path.splitext(self.name)
-        lastmdate_f = time.ctime(os.path.getmtime(self.name))
+        directory_fname, base_fname = os.path.split(self._ffname)
+        size_f = os.path.getsize(self._ffname)
+        _, type_f = os.path.splitext(self._ffname)
+        lastmdate_f = time.ctime(os.path.getmtime(self._ffname))
         try :
-            cdate_f = time.ctime(os.path.getctime(self.name)) #for windows
+            cdate_f = time.ctime(os.path.getctime(self._ffname)) #for windows
         except :
             
             try :
-                stat = os.stat(self.name)
+                stat = os.stat(self._ffname)
                 cdate_f = time.ctime(stat.st_birthtime)#for IOS 
             except AttributeError:
                 # We're probably on Linux. No easy way to get creation dates here,
@@ -80,10 +76,10 @@ class Nanonisfile:
 
         tag = nanonis_flags[fname_ext]
         
-        with open(self.name, 'rb') as f:
+        with open(self._ffname, 'rb') as f:
 
             # Set to a default value to know if end_tag wasn't found
-            byte_offset = -1
+            self._dataflag = -1
 
             for line in f:
                 # Convert from bytes to str
@@ -93,25 +89,22 @@ class Nanonisfile:
                     warnings.warn('{} has non-uft-8 characters, replacing them.'.format(f.name))
                     entry = line.strip().decode('utf-8', errors='replace')
                 if tag in entry:
-                    byte_offset = f.tell()
+                    self._dataflag = f.tell()
                     break
 
-        with open(self.name, 'rb') as f:
-            header = f.read(byte_offset).decode('utf-8', errors='replace')
+        with open(self._ffname, 'rb') as f:
+            header = f.read(self._dataflag).decode('utf-8', errors='replace')
 
-        if byte_offset == -1:
+        if self._dataflag == -1:
             raise FileHeaderNotFoundError(
-                    'Could not find the {} end tag in {}'.format(tag, self.name)
+                    'Could not find the {} end tag in {}'.format(tag, self._ffname)
                     )
         
         if fname_ext == '.dat':
-            header = parse_dat_header(header)
+            header = _parse_dat_header(header)
             
         elif fname_ext == '.sxm':
-            byte_offset += 4 #for sxm data the first 4 bites after the tag are not data
-            header = parse_sxm_header(header)            
-        
-        self.dataflag = byte_offset
+            header = _parse_sxm_header(header)            
         
         return header
     
@@ -121,12 +114,8 @@ class Nanonisfile:
         if fname_ext not in ['.sxm','.dat']:
             raise UnhandledFileError('{} is not a supported filetype or does not exist'.format(fname_ext))
 
-        data = load_data(self.name, self.metadata['File extension'], self.dataflag, self.header)
+        data = _load_data(self._ffname, self.metadata['File extension'], self._dataflag, self.header)
         return data
-  
-    def _process_data(self):
-        processeddata = {}
-        return processeddata
 
 class UnhandledFileError(Exception):
 
@@ -143,7 +132,7 @@ class FileHeaderNotFoundError(Exception):
     """
     pass
 
-def parse_scan_header_table(table_list):
+def _parse_scan_header_table(table_list):
     """
     Parse scan file header entries whose values are tab-separated
     tables.
@@ -161,7 +150,7 @@ def parse_scan_header_table(table_list):
 
     return dict(zip(keys, zip_vals))
 
-def parse_sxm_header(header_raw):
+def _parse_sxm_header(header_raw):
     """
     Parse raw header string.
 
@@ -209,7 +198,7 @@ def parse_sxm_header(header_raw):
                     break
                 if header_entries[j][0] == '\t':
                     count += 1
-            header_dict[entry.strip(':').lower()] = parse_scan_header_table(header_entries[i+1:i+count])
+            header_dict[entry.strip(':').lower()] = _parse_scan_header_table(header_entries[i+1:i+count])
             continue
         if entry in entries_possibly_multilines:
             multilines_entry = []
@@ -235,7 +224,7 @@ def parse_sxm_header(header_raw):
 
     return header_dict
 
-def parse_dat_header(header_raw):
+def _parse_dat_header(header_raw):
     """
     Parse point spectroscopy header.
 
@@ -268,7 +257,7 @@ def parse_dat_header(header_raw):
 
     return header_dict
 
-def load_data(filename, file_ext, dataflag, header):
+def _load_data(filename, file_ext, dataflag, header):
     """
     Loads ascii formatted .dat file or bynary formatted .sxm file.
     
@@ -290,13 +279,12 @@ def load_data(filename, file_ext, dataflag, header):
     if file_ext == '.dat':
     
         # done differently since data is ascii, not binary
-        #f = open(self.fname, 'r')
         with open(filename,'r') as f:
             f.seek(dataflag)
             data_dict = dict()
             column_names = f.readline().strip('\n').split('\t')
 
-        num_lines = num_header_lines(filename)
+        num_lines = _num_header_lines(filename)
         specdata = np.genfromtxt(filename, delimiter='\t', skip_header=num_lines)
     
         for i, name in enumerate(column_names):
@@ -314,9 +302,7 @@ def load_data(filename, file_ext, dataflag, header):
         data_dict = dict()
 
         # open and seek to start of data
-        with open(filename, 'rb') as f:
-            f.seek(dataflag)
-            scandata = np.fromfile(filename, dtype='>f4')
+        scandata = np.fromfile(filename, dtype='>f4', offset = dataflag + 4)
             
         # reshape
         scandata_shaped = scandata.reshape(nchanns, ndir, ny, nx)
@@ -329,15 +315,11 @@ def load_data(filename, file_ext, dataflag, header):
 
     return data_dict
     
-def num_header_lines(fname):
+def _num_header_lines(fname):
     """Number of lines the header is composed of"""
     with open(fname, 'r') as f:
         data = f.readlines()
         for i, line in enumerate(data):
             if nanonis_flags['.dat'] in line:
                 return i + 2  # add 2 to skip the tag itself and column names
-    return 0
-
-#class loaddata(Nanonisfile):
-    
-    
+    return 0    
