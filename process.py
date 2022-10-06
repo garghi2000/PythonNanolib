@@ -1,66 +1,63 @@
-def procces_data(data, exp_type):
-    if exp_type == 'CLAMPoints-dat':
-        processed_data = data
-    elif exp_type == 'bias spectroscopy':
-        processed_data = data
-    elif exp_type == 'History Data':
-        processed_data = data
-    elif exp_type == 'Sweep':
-        processed_data = data   
-    elif exp_type == 'Oscilloscope':
-        processed_data = data
-    elif exp_type == 'Z spectroscopy':
-        processed_data = data
-    elif exp_type == 'Longterm':
-        processed_data = data
-    elif exp_type == 'Spectrum':
-        processed_data = data
-    elif exp_type == 'STM':
-        processed_data = data
-    elif exp_type == 'SFEM':
-        processed_data = data
-    else:
-        raise Exception('The experiment type could not be found in the header.')
-    return processed_data
-#if clam
-Xlabel = "Energy (eV)"
-Ylabel = "Counter 2 (cps)"
-Ylabelnorm = "Counts/Current (cps/A)"
-Xdata = myfile.data[Xlabel]
-Ydata = myfile.data[Ylabel]
-Ydatanorm = Ydata/np.abs(myfile.data['Tip Current (A)'])
+admitted_types = ["CLAMPoints-dat",
+                "bias spectroscopy",
+                "History Data",
+                "Sweep",
+                "Oscilloscope",
+                "Z spectroscopy",
+                "Longterm",
+                "Spectrum",
+                "STM",
+                "SFEM"
+                ]
 
-fig, ax = plt.subplots()
-ax.plot(Xdata, Ydata, '.-b', label='row')
-ax.set_xlabel(Xlabel)
-ax.set_ylabel(Ylabel)
+def _normalization(data):
+    return data
+def _scaling(data):
+    return data
+def _multiplying(data):
+    return data
+def _differentiation(data):
+    return data
+def _sum(data):
+    return data
 
-ax2 = ax.twinx()
-ax2.plot(Xdata, Ydatanorm, '.-r', label='norm by current')
-ax2.set_ylabel(Ylabelnorm)
+def _process_data(data, processType):
+    process_data = data
+    return process_data
 
-plt.title(myfile.metadata["File name"])
-
-ax.legend(loc=0)
-ax2.legend(loc=1)
-
-plt.show()
-
-   #if bbx
-Xlabel = "BB Back Bias (V)"
-Ylabel = "BBX (Hz)"
-Ylabelnorm = "Counts/Current (cps/A)"
-Xdata = myfile.data[Xlabel]
-Ydata = myfile.data[Ylabel]
-Ydatanorm = Ydata/np.abs(myfile.data['Tip Current (A)'])
-
-fig, ax = plt.subplots()
-ax.plot(Xdata, Ydatanorm, '.-b', label='Si(111) 7x7')
-ax.set_xlabel(Xlabel)
-ax.set_ylabel(Ylabelnorm)
+def process(NanonisFile, processType = 'Normalization', chnsToProc = 'all', ref = None):
+    processAllowed = ['Normalization','Scaling','Differentiation','Multiplycation','Sum']
+    df = NanonisFile.data
     
-plt.title(["Si(111) 7x7 , Ep = 133 eV"])
-
-ax.legend(loc=0)
-plt.show()
-
+    
+    
+    #check the input processType
+    if not(processType in processAllowed):
+        raise Exception('The processType must be one of the following: '
+                        'Normalization, Scaling, Moltiplying, Sum.')
+    
+    if chnsToProc == 'all' :
+        chnsToProc = df.columns
+    elif set(chnsToProc).issubset(df.columns):
+        chnsToProc = chnsToProc
+    elif set(chnsToProc).issubset(range(len(df.columns))):
+        chnsToProc = df.columns[chnsToProc]
+    else :
+        raise Exception('The parameter yChns must be a list of column names,'
+                        'a list of integers, or a string == all')
+        
+    #retrive data to process to numpy array
+    ################################ work from here ##########################
+    for chn in chnsToProc:    
+        dataToProcess = df[chn].to_numpy()
+        newData = _process_data(dataToProcess, processType)
+        newDataName = chn + ' ' + processType
+        df.insert(len(df)+1, newData, newDataName)
+    
+    if ref in df.columns or  ref in range(len(df.columns)):
+        ref = df[ref]
+    else :
+        raise Exception('The parameter ref must be None or string present in '
+                    'the list of the recorded channels names')
+    
+    pass

@@ -9,42 +9,73 @@ import numpy as np
 import pandas as pd
 import math
 
-def _plot1Ddata(Nanonisfile, Chn2plot, KeepAxes):
-    if Chn2plot == 'all':
-        df = pd.DataFrame(Nanonisfile.data)
+def _plot1Ddata(Nanonisfile, xChn, yChns, keepAxes):
+    #conversion to pandas dataframe
+    df = pd.DataFrame(Nanonisfile.data)
+    
+    #check on xChn input
+    if xChn != None :
+        if xChn in df.columns:
+            X = xChn
+        elif xChn in range(len(df.columns)):
+            X = df.columns[xChn]
+        else :
+            raise Exception('The parameter xChn must be either None, a string present in '
+                        'the list of the recorded channels names, or an index')
     else :
-        df = pd.DataFrame(Nanonisfile.data)[Chn2plot]
+        X = None
         
-    if KeepAxes == 'True':
-        df.plot()
+    #check on yChns input
+    if yChns == 'all' :
+        Y = df.columns
+    elif set(yChns).issubset(df.columns):
+        Y = yChns
+    elif set(yChns).issubset(range(len(df.columns))):
+        Y = df.columns[yChns]
+    else :
+        raise Exception('The parameter yChns must be a list of column names,'
+                        'a list of idexes, or a string == all')
+    
+    #check on keepAxes input
+    if keepAxes == 'True' or keepAxes == True :
+        df.plot(x = X, y = Y)
         plt.show()       
-    else :
-        naxs = len(df.columns)
-        # nice way to distribute the subplots on a grid
-        nrow = math.floor(math.sqrt(naxs)) 
-        ncol = math.ceil(naxs/nrow)
-        fig, axs = plt.subplots(nrow, ncol)
+    elif keepAxes == 'False' or keepAxes == False :
+        nAxes = len(Y)
+        # nice way to distribute the subplots on a grid as square as possible
+        nRow = math.floor(math.sqrt(nAxes)) 
+        nCol = math.ceil(nAxes/nRow)
+        fig, axes = plt.subplots(nRow, nCol)
         fig.tight_layout(pad = 1)
-        for chname in df.columns:
-            axr = axs.ravel()
-            axchname = axr[df.columns.get_loc(chname)]         
-            axchname.set_ylabel(chname)
-            df[chname].plot(ax = axchname, y = chname, figsize =(12, 5))    
-        for ax in axr[naxs:]: ax.axis('off')
+        axr = axes.ravel()
+        i = 0
+        for chName in Y:
+            yAxChName = axr[i]         
+            yAxChName.set_ylabel(chName)
+            i += 1 
+            if X == None or chName == X:
+                df[chName].plot(xlabel = 'Index', ax = yAxChName, y = chName,
+                                figsize =(9, 6))
+            else:
+                df.plot(ax = yAxChName, x = X, y = chName, figsize =(9, 6))
+
+        for ax in axr[nAxes:]:
+            ax.axis('off')
         plt.show()
-        #I mihgt think of a way to plot a channel vs an other channel
-        
+    else :
+        raise Exception('The parameter keepAxes must be a boolean')
+            
 ############ It needed to perform a plot of y vs x chosen channels ######
-def _plot2Ddata(Nanonisfile, Chn2plot, KeepAxes):
+def _plot2Ddata(Nanonisfile, yChns):
     pass
 
-def nsfile(Nanonisfile, Chn2plot = 'all', KeepAxes = 'False') :
+def plot(Nanonisfile, xChn = None, yChns = 'all', keepAxes = False) :
     
     if Nanonisfile.metadata['File extension'] == '.dat': 
-        _plot1Ddata(Nanonisfile, Chn2plot, KeepAxes)
+        _plot1Ddata(Nanonisfile, xChn, yChns, keepAxes)
         
     elif Nanonisfile.metadata['File extension'] == '.sxm':
-        _plot2Ddata(Nanonisfile, Chn2plot, KeepAxes)
+        _plot2Ddata(Nanonisfile, yChns, keepAxes)
     
 #     data_header = Nanonisfile.header
 #     if Nanonisfile.metadata['File extension'] == '.dat'
