@@ -1,49 +1,88 @@
 import numpy as np
-import pandas as pd
 import math
 
 def _normalization(data, dataRef):
-    return data
-def _scaling(data, dataRef):
-    return data
+    return (data -  data.min())/(data.max() - data.min())
+
+def _standardization(data, dataRef):
+    return (data - data.mean())/(data.std())
+
 def _multiplycation(data, dataRef):
-    dataProcessed = data * dataRef
-    return dataProcessed
+    return data * dataRef
+
 def _division(data, dataRef):
-    dataProcessed = data / dataRef
-    return dataProcessed
+    return data / dataRef
+
 def _differentiation(data, dataRef):
-    return data
+    data = np.diff(data)
+    # the last array element is repeated to avoid the discreate 
+    # differentiation having a different number of points
+    return np.add(data, data[-1])
+
 def _sum(data, dataRef):
-    dataProcessed = data + dataRef
-    return dataProcessed
+    return data + dataRef
+
 def _merge(data, dataRef):
     return data
 
-processAllowed = {"Normalization":_normalization,
-                  "Scaling":_scaling,
-                  "Differentiation":_differentiation,
-                  "Multiplycation":_multiplycation,
-                  "Division":_division,
-                  "Sum":_sum,
-                  "Merge":_merge}
+def _average(data, dataRef):
+    return (data + dataRef)/2
 
-expTypesAllowed = ["CLAMPoints-dat", 
-                  "bias spectroscopy", 
-                  "History Data", 
-                  "Sweep",
-                  "Oscilloscope",
-                  "Z spectroscopy",
-                  "Longterm",
-                  "Spectrum",
-                  "STM",
-                  "SFEM"]
+processAllowed = {
+    "Min-MaxNormalization":_normalization,
+    "Standardization":_standardization,
+    "Differentiation":_differentiation,
+    "Multiplycation":_multiplycation,
+    "Division":_division,
+    "Sum":_sum,
+    "Merge":_merge,
+    "Average":_average}
+
+expTypesAllowed = [
+    "CLAMPoints-dat", 
+    "bias spectroscopy", 
+    "History Data", 
+    "Sweep",
+    "Oscilloscope",
+    "Z spectroscopy",
+    "Longterm",
+    "Spectrum",
+    "STM",
+    "SFEM"]
 
 def _process_data(dataToProcess, processType, dataRef):
-    process_data = processAllowed[processType](dataToProcess, dataRef)
-    return process_data
+    """
+    This function calls the process function corresponding to the processType.
+    """
+    return processAllowed[processType](dataToProcess, dataRef)
 
-def process(NanonisFile, processType = 'Division', chnsToProc = 'all', ref = None):
+def processSingleFile(
+        NanonisFile, processType = 'Division', chnsToProc = 'all', ref = None
+        ):
+    """
+    This function processes data of one or more channels from a single 
+    NanonisFile object.
+    
+    The process can be a stand alone process such as differenciation or scaling
+    or it can be with respect to a reference channel or number(ref).
+    
+    The resulting processed data is added on a new channel of the NanonisFile 
+    object.
+    
+    INPUT
+    ---------------------------------------------------------------------------
+    NanonisFile : (NanonisFile object of class NanonisFile) ->  
+    the attribute 'data' of such a class is a dict containing the channel 
+    names as keys and data as values.
+    
+    processType: (str) -> corresponds to the name of the process to apply
+    
+    chnsToProc : (str) ->  can be 'all' or a channel name
+                 (list) -> can be list of channel names or channel indexes
+    ref : (str) -> can be the name of a channel
+          (number) -> can be a number
+    
+    """
     data = NanonisFile.data
     allchns = list(data.keys())
     
@@ -55,6 +94,8 @@ def process(NanonisFile, processType = 'Division', chnsToProc = 'all', ref = Non
     #check the input chnsToProc
     if chnsToProc == 'all' :
         chnsToProc = allchns
+    elif chnsToProc in allchns:
+        chnsToProc = [chnsToProc]
     elif set(chnsToProc).issubset(allchns):
         chnsToProc = chnsToProc
     elif set(chnsToProc).issubset(range(len(allchns))):
@@ -64,22 +105,26 @@ def process(NanonisFile, processType = 'Division', chnsToProc = 'all', ref = Non
                         'a list of integers, or a string == all')
     
     #check the input ref
-    if ref != None:
-        if ref in allchns:
-            dataRef = data[ref]
-        elif ref in range(len(allchns)):
-            ref = allchns[ref]
-            dataRef = data[ref]
-        else :
-            raise Exception('The parameter ref must be None or string present in '
-                        'the list of the recorded channels names')
+    if ref == None:
+        dataRef = None
+    elif ref in allchns:
+        dataRef = data[ref]
+    elif ref.isnumeric():
+        dataRef = ref           
     else:
-        dataRef = ref
+        raise Exception('The parameter ref must be None or string present in '
+                    'the list of the recorded channels names or a number')
     
     #each channel to process is processed by procesType with respect to the ref
     for chn in chnsToProc:
         dataToProcess = data[chn]
         dataProcessed = _process_data(dataToProcess, processType, dataRef)
-        newDataName = chn + ' ' + processType + ' by ' + ref
+        if processType in ["Min-MaxNormalization","Standardization"]:
+            newDataName = chn + 'scaled by: ' + processType + ' method'
+        else:
+            newDataName = chn + ' ' + processType + ' by ' + ref
+        
         NanonisFile.data.update({newDataName: dataProcessed})
-    return NanonisFile
+
+def processMultiFiles(processType = 'Division', chnsToProc = 'all', ref = None):
+    pass        
