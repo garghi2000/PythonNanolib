@@ -15,6 +15,11 @@ def _handle_input_1(Nanonisfile):
 
 
 def _handle_input_2(data, xChn):
+    if xChn is True or xChn is False:
+        raise Exception(
+            f'The parameter xChn = {xChn} must be either None,'
+            ' a string present in '
+            'the list of the recorded channels names, or an integer')
     if xChn is None:
         # adding a column of indexes to data dict if xChn is not given
         xName = '#Index'
@@ -25,20 +30,26 @@ def _handle_input_2(data, xChn):
         xName = list(data.keys())[xChn]
     else:
         raise Exception(
-            'The parameter xChn must be either None, a string present in '
+            f'The parameter xChn = {xChn} must be either None,'
+            ' a string present in '
             'the list of the recorded channels names, or an integer')
     return xName
 
 
 def _handle_input_3(data, yChns):
+    allchns = list(data.keys())
+    if yChns is True or yChns is False:
+        raise Exception(
+            'The parameter yChns must be a list of column names,'
+            'a list of idexes, or a string == all')
     if yChns == 'all':
-        yNames = list(data.keys())
-    elif yChns in data.keys():
+        yNames = allchns
+    elif yChns in allchns:
         yNames = [yChns]
-    elif set(yChns).issubset(data.keys()):
+    elif set(yChns).issubset(allchns):
         yNames = yChns
-    elif set(yChns).issubset(range(len(data.keys()))):
-        yNames = [data.keys()[i] for i in yChns]
+    elif set(yChns).issubset(range(len(allchns))):
+        yNames = [allchns[i] for i in yChns]
     else:
         raise Exception(
             'The parameter yChns must be a list of column names,'
@@ -56,62 +67,67 @@ def _handle_input_4(keepAxes):
     return keepAxes
 
 
-def _handle_input5(figsize):
-    if type(figsize) != tuple or len(figsize) != 2:
+def _handle_input_5(sfigsize):
+    if type(sfigsize) != tuple or len(sfigsize) != 2:
         raise Exception(
-            f"The input figsize = {figsize} is not a tuple of size 2")
-    elif all(type(i) != str for i in figsize):
+            f"The input figsize = {sfigsize} is not a tuple of size 2")
+    elif not all(type(i) != str for i in sfigsize):
         raise Exception(
-            f"The input figsize = {figsize} must be a tuple of 2 numbers"
+            f"The input figsize = {sfigsize} must be a tuple of 2 numbers"
             ", not strings")
-    return figsize
+    return sfigsize
 
 
-def _figure_all_in_one():
-    pass
+def _figure_all_in_one(data, xName, yNames, sfigsize):
+    wfig, hfig = sfigsize
+    fig, ax = plt.subplots(figsize=(wfig, hfig))
+    for yName in yNames:
+        ax.plot(data[xName], data[yName], label=yName)
+        plt.legend(loc="upper left")
+        plt.xlabel(xName)
+    plt.show()
+    return fig, ax
 
 
-def _figures_in_a_grid():
-    pass
+def _figures_in_a_grid(data, xName, yNames, sfigsize):
+    colors = ["b", "g", "r", "c", "m", "y", "k", "w"]
+    wfig, hfig = sfigsize
+    nAxes = len(yNames)
+    # Organizing multiplots such that the figure is as square as possible
+    nRow = math.floor(math.sqrt(nAxes))
+    nCol = math.ceil(nAxes/nRow)
+    # Vector of 2D indexes of the grid in order to use a single loop later
+    gridIdxs = [[i, j] for i in range(nRow) for j in range(nCol)]
+    wr = [wfig]*nCol
+    hr = [hfig]*nRow
+    fig = plt.figure(constrained_layout=True, figsize=(sum(wr), sum(hr)))
+    grid = gridspec.GridSpec(
+        nRow, nCol, width_ratios=wr, height_ratios=hr, figure=fig
+        )
+    for i, yName in enumerate(yNames):
+        idx1, idx2 = gridIdxs[i]
+        ax = plt.subplot(grid[idx1, idx2])
+        ax.plot(data[xName], data[yName], colors[i % len(colors)])
+        plt.ylabel(yName)
+        plt.xlabel(xName)
+    plt.show()
+    return fig, grid, ax
 
-
-def _plot1Ddata(nanonisfile, xChn, yChns, keepAxes, figsize):
+def _plot1Ddata(nanonisfile, xChn, yChns, keepAxes, sfigsize):
     # the order of the _handle_input functions must occur after _handle_input_3
     nanonisfile = _handle_input_1(nanonisfile)
     data = nanonisfile.data
     yNames = _handle_input_3(data, yChns)
     xName = _handle_input_2(data, xChn)
     keepAxes = _handle_input_4(keepAxes)
-    unitHeight, goldenRatio = _handle_input5(figsize)
+    sfigsize = _handle_input_5(sfigsize)
 
     # check on keepAxes input
     if keepAxes:
-        fig, ax = plt.subplots(figsize=(unitHeight*goldenRatio, unitHeight))
-        for yName in yNames:
-            ax.plot(data[xName], data[yName], label=yName)
-            plt.legend(loc="upper left")
-            plt.xlabel(xName)
-        plt.show()
-    elif keepAxes:
-        nAxes = len(yNames)
-        # Organizing multiplots such that the figure is as square as possible
-        nRow = math.floor(math.sqrt(nAxes))
-        nCol = math.ceil(nAxes/nRow)
-        # Vector of 2D indexes of the grid in order to use a single loop later
-        gridIdxs = [[i, j] for i in range(nRow) for j in range(nCol)]
-        wr = [unitHeight*goldenRatio]*nCol
-        hr = [unitHeight]*nRow
-        fig = plt.figure(constrained_layout=True, figsize=(sum(wr), sum(hr)))
-        grid = gridspec.GridSpec(
-            nRow, nCol, width_ratios=wr, height_ratios=hr, figure=fig
-            )
-        for i, yName in enumerate(yNames):
-            idx1, idx2 = gridIdxs[i]
-            ax = plt.subplot(grid[idx1, idx2])
-            ax.plot(data[xName], data[yName])
-            plt.ylabel(yName)
-            plt.xlabel(xName)
-        plt.show()
+        fig, ax = _figure_all_in_one(data, xName, yNames, sfigsize)
+    else:
+        fig, grid, ax = _figures_in_a_grid(data, xName, yNames, sfigsize)
+
     # removing extra columns of indexes added before if it exists
     if '#Index' in data.keys():
         del data['#Index']
@@ -124,7 +140,10 @@ def _plot2Ddata(Nanonisfile, yChns):
     pass
 
 
-def plot(Nanonisfile, xChn=None, yChns='all', keepAxes=False, figsize=(2, 1.6)):
+def plot(
+        Nanonisfile, xChn=None, yChns='all',
+        keepAxes=False, sfigsize=(3.2, 2)
+        ):
     """
     Plot file structured in Nanonisfile class.
 
@@ -145,6 +164,6 @@ def plot(Nanonisfile, xChn=None, yChns='all', keepAxes=False, figsize=(2, 1.6)):
     plot_case = {".dat": _plot1Ddata, ".sxm": _plot2Ddata}
     key = Nanonisfile.metadata['File extension']
     fig = plot_case[key](
-            Nanonisfile, xChn, yChns, keepAxes)
+            Nanonisfile, xChn, yChns, keepAxes, sfigsize)
 
     return fig
