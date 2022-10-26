@@ -1,65 +1,63 @@
-import os, time
-import warnings
+import os, time, warnings
 import numpy as np
 
 class Nanonisfile:
     """ This is the file Class to structure Nanonis files.
-    
+
     CONSTANTS
     ---------------------------------------------------------------------------
     nanonis_flags : {'file extension': 'flag'} -> dictionary containing the 
     flags separating header from data for different file types recorded by 
     nanonis
-    
+
     INPUT
     ---------------------------------------------------------------------------
     fpfname : (str) ->  full path file name
-    
+
     ATTRIBUTES
     ---------------------------------------------------------------------------
     _ffname : (str) ->  full path file name
-    
+
     _dataflag : (int) -> index of the bit separeting header from data
-    
+
     metadata : {'str': 'str/int/float'} -> dictionary of metadata 
         such as file size, file name, file directory, file type.
-    
+
     header : {'str': 'str/int/float'} -> dictionary of data information
         as written by nanonis. It depends on the nanonis module used to create
         the file.
-    
+
     data {'str': 'numpy 1D-array'} -> dictionary of data recorded by nanonis
         easily covertible in pandas data frame.
-        
+
     """
-    
+
     global nanonis_flags
     nanonis_flags = {'.sxm' :'SCANIT_END', '.dat':'[DATA]'}
-    
+
     def __init__(self, fpfname):
         self._ffname = fpfname
         self.metadata = self._get_metadata()
         self._dataflag = None
         self.header = self._get_header()
         self.data = self._get_data()
-        
+
     def _get_metadata(self):
         directory_fname, base_fname = os.path.split(self._ffname)
         size_f = os.path.getsize(self._ffname)
         _, type_f = os.path.splitext(self._ffname)
         lastmdate_f = time.ctime(os.path.getmtime(self._ffname))
-        try :
+        try:
             cdate_f = time.ctime(os.path.getctime(self._ffname)) #for windows
-        except :
-            
-            try :
+        except:
+            try:
                 stat = os.stat(self._ffname)
-                cdate_f = time.ctime(stat.st_birthtime)#for IOS 
+                cdate_f = time.ctime(stat.st_birthtime) # for IOS 
             except AttributeError:
                 # We're probably on Linux. No easy way to get creation dates here,
                 # so we'll settle for when its content was last modified.
                 cdate_f = lastmdate_f 
-            
+
         metadata = {'File name': base_fname,
                     'File directory': directory_fname,
                     'File size': size_f,
@@ -67,7 +65,7 @@ class Nanonisfile:
                     'Date creation': cdate_f,
                     'Date last modification': lastmdate_f}
         return metadata
-        
+
     def _get_header(self):
         fname_ext = self.metadata['File extension']
         
@@ -75,7 +73,7 @@ class Nanonisfile:
             raise UnhandledFileError('{} is not a supported filetype or does not exist'.format(fname_ext))
 
         tag = nanonis_flags[fname_ext]
-        
+
         with open(self._ffname, 'rb') as f:
 
             # Set to a default value to know if end_tag wasn't found
@@ -86,15 +84,14 @@ class Nanonisfile:
                 try:
                     entry = line.strip().decode()
                 except UnicodeDecodeError:
-                    warnings.warn('{} has non-uft-8 characters, replacing them.'.format(f.name))
+                    warnings.warn(
+                        '{} has non-uft-8 characters, replacing them.'.format(f.name))
                     entry = line.strip().decode('utf-8', errors='replace')
                 if tag in entry:
                     self._dataflag = f.tell()
                     break
-
         with open(self._ffname, 'rb') as f:
             header = f.read(self._dataflag).decode('utf-8', errors='replace')
-
         if self._dataflag == -1:
             raise FileHeaderNotFoundError(
                     'Could not find the {} end tag in {}'.format(tag, self._ffname)
@@ -126,7 +123,6 @@ class UnhandledFileError(Exception):
 
 
 class FileHeaderNotFoundError(Exception):
-
     """
     To be raised when no header information could be determined.
     """
@@ -264,9 +260,10 @@ def _load_data(filename, file_ext, dataflag, header):
     Inputs
     -------
         file --> entire full file path
-        file_ext --> file extension needed to differenciate the way data are loaded
-        dataflag --> flag that delimitates header from data
-        header --> header usefull for retrive data structure in sxm files
+        file_ext --> file extension needed to differenciate the
+                    way data are loaded.
+        dataflag --> flag that delimitates header from data.
+        header --> header usefull for retrive data structure in sxm files.
     
     Returns
     -------
@@ -274,8 +271,8 @@ def _load_data(filename, file_ext, dataflag, header):
         Keys correspond to each channel recorded, including
         saved/filtered versions of other channels.
     """
-    
-######## load .dat files
+
+    # load .dat files
     if file_ext == '.dat':
     
         # done differently since data is ascii, not binary
@@ -290,7 +287,7 @@ def _load_data(filename, file_ext, dataflag, header):
         for i, name in enumerate(column_names):
             data_dict[name] = specdata[:, i]
             
-######## load .dat files
+    #### load .sxm files
     elif file_ext == '.sxm':
         channs = list(header['data_info']['Name'])
         nchanns = len(channs)
