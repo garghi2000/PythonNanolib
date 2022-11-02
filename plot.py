@@ -113,6 +113,7 @@ def _figures_in_a_grid(data, xName, yNames, sfigsize):
     plt.show()
     return fig, grid, ax
 
+
 def _plot1Ddata(nanonisfile, xChn, yChns, keepAxes, sfigsize):
     # the order of the _handle_input functions must occur after _handle_input_3
     nanonisfile = _handle_input_1(nanonisfile)
@@ -140,7 +141,7 @@ def _plot2Ddata(Nanonisfile, yChns):
     pass
 
 
-def plot(
+def plotSingleFile(
         Nanonisfile, xChn=None, yChns='all',
         keepAxes=False, sfigsize=(3.2, 2)
         ):
@@ -167,3 +168,7 @@ def plot(
             Nanonisfile, xChn, yChns, keepAxes, sfigsize)
 
     return fig
+
+
+def plotMultiFiles():
+    pass

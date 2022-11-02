@@ -1,4 +1,4 @@
-from Pynanonlib import load
+from Pynanolib import load
 import numpy as np
 import math
 
@@ -23,7 +23,7 @@ def _differentiation(data, dataRef):
     data = np.diff(data)
     # the last array element is repeated to avoid the discreate 
     # differentiation having a different number of points
-    return np.add(data, data[-1])
+    return np.append(data, data[-1])
 
 
 def _sum(data, dataRef):
@@ -74,8 +74,7 @@ def _handle_input_1(Nanonisfile):
 def _handle_input_2(processType):
     if not(processType in processAllowed.keys()):
         raise Exception('The processType must be one of the following: '
-                        'Normalization, Scaling, Moltiplying, Sum, '
-                        'Differentiation, Merge.')
+                        f'{processAllowed.keys()}')
     return processType
 
 
@@ -155,12 +154,14 @@ def processSingleFile(
     chnsToProc = _handle_input_3(data, chnsToProc)
     dataRef = _handle_input_4(data, ref)
 
-    # each channel to process is processed by procesType with respect to the ref
+    # each channel is processed by procesType with/without respect to ref
     for chn in chnsToProc:
         dataToProcess = data[chn]
         dataProcessed = _process_data(dataToProcess, processType, dataRef)
-        if processType in ["Min-MaxNormalization","Standardization"]:
-            newDataName = chn + 'scaled by: ' + processType + ' method'
+        if processType in [
+                "Min-MaxNormalization", "Standardization", "Differentiation"
+                ]:
+            newDataName = chn + ' processed with: ' + processType + ' method'
         else:
             newDataName = chn + ' ' + processType + ' by ' + ref
         NanonisFile.data.update({newDataName: dataProcessed})
