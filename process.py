@@ -1,7 +1,8 @@
-from Pynanolib import load
+#from Pynanolib import load
+import load
 import numpy as np
 import math
-
+from warnings import warn
 
 def _normalization(data, dataRef):
     return (data -  data.min())/(data.max() - data.min())
@@ -21,8 +22,10 @@ def _division(data, dataRef):
 
 def _differentiation(data, dataRef):
     data = np.diff(data)
-    # the last array element is repeated to avoid the discreate 
-    # differentiation having a different number of points
+    warn(
+        "Warning....The process Differentiation does not reduce by 1"
+         " the dimension of the array processed. The last element is"
+         " indeed a copy of the second last.")
     return np.append(data, data[-1])
 
 
@@ -124,7 +127,7 @@ def _process_data(dataToProcess, processType, dataRef):
     return processAllowed[processType](dataToProcess, dataRef)
 
 def processSingleFile(
-        NanonisFile, processType = 'Division', chnsToProc = 'all', ref = None
+        Nanonisfile, processType = 'Division', chnsToProc = 'all', ref = None
         ):
     """
     This function processes data of one or more channels from a single 
@@ -133,12 +136,12 @@ def processSingleFile(
     The process can be a stand alone process such as differenciation or scaling
     or it can be with respect to a reference channel or number(ref).
     
-    The resulting processed data is added on a new channel of the NanonisFile 
+    The resulting processed data is added on a new channel of the Nanonisfile 
     object.
     
     INPUT
     ---------------------------------------------------------------------------
-    NanonisFile : (NanonisFile object of class NanonisFile) ->  
+    Nanonisfile : (Nanonisfile object of class Nanonisfile) ->  
     the attribute 'data' of such a class is a dict containing the channel 
     names as keys and data as values.
     
@@ -149,7 +152,7 @@ def processSingleFile(
     ref : (str) -> can be the name of a channel
           (number) -> can be a number
     """
-    data = _handle_input_1(NanonisFile).data
+    data = _handle_input_1(Nanonisfile).data
     processType = _handle_input_2(processType)
     chnsToProc = _handle_input_3(data, chnsToProc)
     dataRef = _handle_input_4(data, ref)
@@ -164,7 +167,7 @@ def processSingleFile(
             newDataName = chn + ' processed with: ' + processType + ' method'
         else:
             newDataName = chn + ' ' + processType + ' by ' + ref
-        NanonisFile.data.update({newDataName: dataProcessed})
+        Nanonisfile.data.update({newDataName: dataProcessed})
 
 def processMultiFiles():
     pass
