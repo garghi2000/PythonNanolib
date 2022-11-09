@@ -1,8 +1,10 @@
-from Pynanolib import load
+#from Pynanolib import load
+import load
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
 import math
+from warnings import warn
 
 
 def _handle_input_1(Nanonisfile):
@@ -21,7 +23,7 @@ def _handle_input_2(data, xChn):
             ' a string present in '
             'the list of the recorded channels names, or an integer')
     if xChn is None:
-        # adding a column of indexes to data dict if xChn is not given
+        # adding a column of indexes to data dict if xChn input misses
         xName = '#Index'
         data['#Index'] = np.arange(len(data[list(data.keys())[0]]))
     elif xChn in data.keys():
@@ -66,8 +68,17 @@ def _handle_input_4(keepAxes):
         keepAxes = False
     return keepAxes
 
+def _handle_input_5(keepFigure):
+    if keepFigure not in ['True', 'False', True, False]:
+        raise Exception('The parameter keepFigure must be a boolean')
+    if keepFigure == 'True':
+        keepFigure = True
+    if keepFigure == 'False':
+        keepFigure = False
+    return keepFigure
 
-def _handle_input_5(sfigsize):
+
+def _handle_input_6(sfigsize):
     if type(sfigsize) != tuple or len(sfigsize) != 2:
         raise Exception(
             f"The input figsize = {sfigsize} is not a tuple of size 2")
@@ -78,7 +89,24 @@ def _handle_input_5(sfigsize):
     return sfigsize
 
 
-def _figure_all_in_one(data, xName, yNames, sfigsize):
+def _plot_all_figures_standalone(data, xName, yNames, sfigsize):
+    colors = ["b", "g", "r", "c", "m", "y", "k", "w"]
+    wfig, hfig = sfigsize
+    figs = []
+    axs = []
+    for i, yName in enumerate(yNames):
+        f = plt.figure()
+        figs.append(f)
+        ax = plt.plot(
+            data[xName], data[yName], colors[i % len(colors)], label=yName)
+        axs.append(ax)
+        plt.legend(loc="upper left")
+        plt.xlabel(xName)
+    plt.show()
+    return figs, axs
+
+
+def _plot_figure_all_in_one(data, xName, yNames, sfigsize):
     wfig, hfig = sfigsize
     fig, ax = plt.subplots(figsize=(wfig, hfig))
     for yName in yNames:
@@ -89,7 +117,7 @@ def _figure_all_in_one(data, xName, yNames, sfigsize):
     return fig, ax
 
 
-def _figures_in_a_grid(data, xName, yNames, sfigsize):
+def _plot_figures_in_a_grid(data, xName, yNames, sfigsize):
     colors = ["b", "g", "r", "c", "m", "y", "k", "w"]
     wfig, hfig = sfigsize
     nAxes = len(yNames)
@@ -114,22 +142,33 @@ def _figures_in_a_grid(data, xName, yNames, sfigsize):
     return fig, grid, ax
 
 
-def _plot1Ddata(nanonisfile, xChn, yChns, keepAxes, sfigsize):
+def _plot1Ddata(nanonisfile, xChn, yChns, keepAxes, keepFigure, sfigsize):
     # the order of the _handle_input functions must occur after _handle_input_3
     nanonisfile = _handle_input_1(nanonisfile)
     data = nanonisfile.data
     yNames = _handle_input_3(data, yChns)
     xName = _handle_input_2(data, xChn)
     keepAxes = _handle_input_4(keepAxes)
-    sfigsize = _handle_input_5(sfigsize)
+    keepFigure = _handle_input_5(keepFigure)
+    sfigsize = _handle_input_6(sfigsize)
 
-    # check on keepAxes input
-    if keepAxes:
-        fig, ax = _figure_all_in_one(data, xName, yNames, sfigsize)
+    # plot accordingly with keepFigure amd keepAxes
+    if keepFigure:
+        if keepAxes:
+            fig, ax = _plot_figure_all_in_one(data, xName, yNames, sfigsize)
+        else:
+            fig, grid, ax = _plot_figures_in_a_grid(data, xName, yNames, sfigsize)
     else:
-        fig, grid, ax = _figures_in_a_grid(data, xName, yNames, sfigsize)
-
-    # removing extra columns of indexes added before if it exists
+        if keepAxes:
+            warn("If the keepFigure variable is False, each selected data will"
+                 " be plotted in a standalone figure,"
+                 " therefore keepAxes variable will lose its meaning"
+                 " and will not be considered."
+                 )
+        # notice that in this case fig is a list of figures
+        fig, ax = _plot_all_figures_standalone(data, xName, yNames, sfigsize)
+    
+    # removing extra columns of indexes added in case of missing XChn input
     if '#Index' in data.keys():
         del data['#Index']
 
@@ -143,7 +182,7 @@ def _plot2Ddata(Nanonisfile, yChns):
 
 def plotSingleFile(
         Nanonisfile, xChn=None, yChns='all',
-        keepAxes=False, sfigsize=(3.2, 2)
+        keepAxes=False, keepFigure=False, sfigsize=(3.2, 2)
         ):
     """
     Plot file structured in Nanonisfile class.
@@ -165,7 +204,7 @@ def plotSingleFile(
     plot_case = {".dat": _plot1Ddata, ".sxm": _plot2Ddata}
     key = Nanonisfile.metadata['File extension']
     fig = plot_case[key](
-            Nanonisfile, xChn, yChns, keepAxes, sfigsize)
+            Nanonisfile, xChn, yChns, keepAxes, keepFigure, sfigsize)
 
     return fig
 
