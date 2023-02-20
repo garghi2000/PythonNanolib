@@ -164,9 +164,9 @@ def processSingleFile(
         if processType in [
                 "Min-MaxNormalization", "Standardization", "Differentiation"
                 ]:
-            newDataName = chn + ' processed with: ' + processType + ' method'
+            newDataName = f"{chn} {processType}"
         else:
-            newDataName = chn + ' ' + processType + ' by ' + ref
+            newDataName = f"{chn} {processType} by {str(ref)}"
         Nanonisfile.data.update({newDataName: dataProcessed})
 
 def processMultiFiles():

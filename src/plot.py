@@ -88,9 +88,19 @@ def _handle_input_6(sfigsize):
             ", not strings")
     return sfigsize
 
+def check_inputs(Nanonisfile, xChn, yChns, keepAxes, keepFigure, sfigsize):
+    Nanonisfile = _handle_input_1(Nanonisfile)
+    data = Nanonisfile.data
+    yNames = _handle_input_3(data, yChns)
+    xName = _handle_input_2(data, xChn)
+    keepAxes = _handle_input_4(keepAxes)
+    keepFigure = _handle_input_5(keepFigure)
+    sfigsize = _handle_input_6(sfigsize)
+    return xName, yNames, keepAxes, keepFigure
+
 
 def _plot_all_figures_standalone(data, xName, yNames, sfigsize):
-    colors = ["b", "g", "r", "c", "m", "y", "k", "w"]
+    colors = ["b", "g", "r", "c", "m", "y", "k"]
     wfig, hfig = sfigsize
     figs = []
     axs = []
@@ -118,7 +128,7 @@ def _plot_figure_all_in_one(data, xName, yNames, sfigsize):
 
 
 def _plot_figures_in_a_grid(data, xName, yNames, sfigsize):
-    colors = ["b", "g", "r", "c", "m", "y", "k", "w"]
+    colors = ["b", "g", "r", "c", "m", "y", "k"]
     wfig, hfig = sfigsize
     nAxes = len(yNames)
     # Organizing multiplots such that the figure is as square as possible
@@ -128,7 +138,7 @@ def _plot_figures_in_a_grid(data, xName, yNames, sfigsize):
     gridIdxs = [[i, j] for i in range(nRow) for j in range(nCol)]
     wr = [wfig]*nCol
     hr = [hfig]*nRow
-    fig = plt.figure(constrained_layout=True, figsize=(sum(wr), sum(hr)))
+    fig = plt.figure(constrained_layout=False, figsize=(sum(wr), sum(hr)))
     grid = gridspec.GridSpec(
         nRow, nCol, width_ratios=wr, height_ratios=hr, figure=fig
         )
@@ -142,15 +152,65 @@ def _plot_figures_in_a_grid(data, xName, yNames, sfigsize):
     return fig, grid, ax
 
 
-def _plot1Ddata(nanonisfile, xChn, yChns, keepAxes, keepFigure, sfigsize):
+def _plot_figure_along_multi_files(
+        Nanonisfiles, xName, yNames, keepFigure, sfigsize):
+
+    colors = ["b", "g", "r", "c", "m", "y", "k"]
+    wfig, hfig = sfigsize
+    nAxes = len(yNames)
+
+    if keepFigure:
+        # Organizing multiplots such that the figure is as square as possible
+        nRow = math.floor(math.sqrt(nAxes))
+        nCol = math.ceil(nAxes/nRow)
+        # Vector of 2D indexes of the grid in order to use a single loop later
+        gridIdxs = [[i, j] for i in range(nRow) for j in range(nCol)]
+        wr = [wfig]*nCol
+        hr = [hfig]*nRow
+        fig = plt.figure(constrained_layout=True, figsize=(sum(wr), sum(hr)))
+        grid = gridspec.GridSpec(
+            nRow, nCol, width_ratios=wr, height_ratios=hr, figure=fig
+            )
+        for i, yName in enumerate(yNames):
+            idx1, idx2 = gridIdxs[i]
+            ax = plt.subplot(grid[idx1, idx2])
+            for j, Nanonisfile in enumerate(Nanonisfiles):
+                filename = Nanonisfile.metadata["File name"]
+                data = Nanonisfile.data
+                ax.plot(data[xName], data[yName],
+                        colors[j % len(colors)], label=filename)
+            plt.legend(loc="upper left")
+            plt.ylabel(yName)
+            plt.xlabel(xName)
+        plt.show()
+        figs = fig
+
+    else:
+        wfig, hfig = sfigsize
+        figs = []
+        axs = []
+        for yName in yNames:
+            f = plt.figure()
+            figs.append(f)
+            for j, Nanonisfile in enumerate(Nanonisfiles):
+                filename = Nanonisfile.metadata["File name"]
+                data = Nanonisfile.data
+                ax = plt.plot(data[xName], data[yName],
+                              colors[j % len(colors)], label=filename)
+                axs.append(ax)
+            plt.legend(loc="upper left")
+            plt.xlabel(xName)
+            plt.ylabel(yName)
+        plt.show()
+        return figs
+
+
+def _plot1Ddata(Nanonisfile, xChn, yChns, keepAxes, keepFigure, sfigsize):
     # the order of the _handle_input functions must occur after _handle_input_3
-    nanonisfile = _handle_input_1(nanonisfile)
-    data = nanonisfile.data
-    yNames = _handle_input_3(data, yChns)
-    xName = _handle_input_2(data, xChn)
-    keepAxes = _handle_input_4(keepAxes)
-    keepFigure = _handle_input_5(keepFigure)
-    sfigsize = _handle_input_6(sfigsize)
+    xName, yNames, keepAxes, keepFigure = check_inputs(
+            Nanonisfile, xChn, yChns, keepAxes, keepFigure, sfigsize)
+    data = Nanonisfile.data
+    
 
     # plot accordingly with keepFigure amd keepAxes
     if keepFigure:
@@ -171,9 +231,35 @@ def _plot1Ddata(nanonisfile, xChn, yChns, keepAxes, keepFigure, sfigsize):
     # removing extra columns of indexes added in case of missing XChn input
     if '#Index' in data.keys():
         del data['#Index']
-
+        
+    if type(fig) == list:
+        for fig in fig:
+            fig.canvas.set_window_title(f'{Nanonisfile.metadata["File name"]}')
+    else:
+        fig.canvas.set_window_title(f'{Nanonisfile.metadata["File name"]}')
     return fig
 
+
+def _plot1Ddata_along_multi_files(Nanonisfiles, xChn, yChns,
+                                  keepAxes, keepFigure, sfigsize):
+
+    # Check the nanonisfiles contain the channels the user has used as input 
+    for Nanonisfile in Nanonisfiles:
+        xName, yNames, keepAxes, keepFigure = check_inputs(
+                Nanonisfile, xChn, yChns, keepAxes, keepFigure, sfigsize)
+        
+    keepAxes = _handle_input_4(keepAxes)
+    keepFigure = _handle_input_5(keepFigure)
+    sfigsize = _handle_input_6(sfigsize)
+    
+    if keepAxes:
+        figs = _plot_figure_along_multi_files(
+            Nanonisfiles, xName, yNames, keepFigure, sfigsize)
+    else:
+        figs = [plotSingleFile(
+            Nanonisfile, xName, yNames, keepAxes,keepFigure, sfigsize)
+            for Nanonisfile in Nanonisfiles]  
+    return figs
 
 # It needed to perform a plot of y vs x chosen channels #
 def _plot2Ddata(Nanonisfile, yChns):
@@ -185,7 +271,7 @@ def plotSingleFile(
         keepAxes=False, keepFigure=False, sfigsize=(3.2, 2)
         ):
     """
-    Plot file structured in Nanonisfile class.
+    Plot a single file structured in Nanonisfile class.
 
     Inputs
     -------
@@ -209,5 +295,44 @@ def plotSingleFile(
     return fig
 
 
-def plotMultiFiles():
-    pass
+def plotMultiFiles(
+        Nanonisfiles, xChn=None, yChns='all',
+        keepAxes=False, keepFigure=False, sfigsize=(3.2, 2)
+        ):
+    """
+    Plot multiple files structured in Nanonisfile class.
+
+    Inputs
+    -------
+        Nanonisfiles --> list of Nanonisfile objects (see Pynanonislib.load
+                                                      module).
+        xChn (str or index) --> single channel taken as X-axis.
+        yChns (list of channels, of integers,
+               or single str = 'all', or to a channel name) --> single  or
+                                        multiple channels to plot in Y-axis.
+        keepAxes(boolean or str='False' or 'True') --> option for plotting
+                                                all graphs in a set of axes.
+    Returns
+    -------
+    figs --> list of figure objects (see matlibplot.figure module).
+
+    """
+    f_ext = []
+    for Nanonisfile in Nanonisfiles:
+        f_ext.append(_handle_input_1(Nanonisfile).metadata['File extension'])
+
+    if f_ext.count(".dat") == len(f_ext):
+        key = ".dat"
+    elif f_ext.count(".sxm") == len(f_ext):
+        key = ".sxm"
+    else:
+        raise Exception(
+            'The Nanonisfiles loaded do not have the same extension,'
+            'therefore they cannot be plot all togheter. Please use a for loop'
+            'and plot them using the plotSingleFile module')
+
+    plot_case = {".dat": _plot1Ddata_along_multi_files, ".sxm": _plot2Ddata}
+    figs = plot_case[key](
+            Nanonisfiles, xChn, yChns, keepAxes, keepFigure, sfigsize)
+
+    return figs
