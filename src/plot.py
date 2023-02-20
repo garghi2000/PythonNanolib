@@ -1,5 +1,4 @@
-#from Pynanolib import load
-import load
+from src import load
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
@@ -7,7 +6,8 @@ import math
 from warnings import warn
 
 
-def _handle_input_1(Nanonisfile):
+def _check_input_1(Nanonisfile):
+    """Check input 1."""
     if not isinstance(Nanonisfile, load.Nanonisfile):
         raise Exception(
             f"The first input {Nanonisfile} is not a Nanonisfile Object"
@@ -16,7 +16,8 @@ def _handle_input_1(Nanonisfile):
     return Nanonisfile
 
 
-def _handle_input_2(data, xChn):
+def _check_input_2(data, xChn):
+    """Check input 2."""
     if xChn is True or xChn is False:
         raise Exception(
             f'The parameter xChn = {xChn} must be either None,'
@@ -38,7 +39,8 @@ def _handle_input_2(data, xChn):
     return xName
 
 
-def _handle_input_3(data, yChns):
+def _check_input_3(data, yChns):
+    """Check input 3."""
     allchns = list(data.keys())
     if yChns is True or yChns is False:
         raise Exception(
@@ -59,7 +61,8 @@ def _handle_input_3(data, yChns):
     return yNames
 
 
-def _handle_input_4(keepAxes):
+def _check_input_4(keepAxes):
+    """Check input 4."""
     if keepAxes not in ['True', 'False', True, False]:
         raise Exception('The parameter keepAxes must be a boolean')
     if keepAxes == 'True':
@@ -68,7 +71,9 @@ def _handle_input_4(keepAxes):
         keepAxes = False
     return keepAxes
 
-def _handle_input_5(keepFigure):
+
+def _check_input_5(keepFigure):
+    """Check input 5."""
     if keepFigure not in ['True', 'False', True, False]:
         raise Exception('The parameter keepFigure must be a boolean')
     if keepFigure == 'True':
@@ -78,7 +83,8 @@ def _handle_input_5(keepFigure):
     return keepFigure
 
 
-def _handle_input_6(sfigsize):
+def _check_input_6(sfigsize):
+    """Check input 6."""
     if type(sfigsize) != tuple or len(sfigsize) != 2:
         raise Exception(
             f"The input figsize = {sfigsize} is not a tuple of size 2")
@@ -88,18 +94,25 @@ def _handle_input_6(sfigsize):
             ", not strings")
     return sfigsize
 
+
 def check_inputs(Nanonisfile, xChn, yChns, keepAxes, keepFigure, sfigsize):
-    Nanonisfile = _handle_input_1(Nanonisfile)
+    """Check that all inputs are corrects."""
+    Nanonisfile = _check_input_1(Nanonisfile)
     data = Nanonisfile.data
-    yNames = _handle_input_3(data, yChns)
-    xName = _handle_input_2(data, xChn)
-    keepAxes = _handle_input_4(keepAxes)
-    keepFigure = _handle_input_5(keepFigure)
-    sfigsize = _handle_input_6(sfigsize)
+    yNames = _check_input_3(data, yChns)
+    xName = _check_input_2(data, xChn)
+    keepAxes = _check_input_4(keepAxes)
+    keepFigure = _check_input_5(keepFigure)
+    sfigsize = _check_input_6(sfigsize)
     return xName, yNames, keepAxes, keepFigure
 
 
 def _plot_all_figures_standalone(data, xName, yNames, sfigsize):
+    """
+    Plot each channel in yNames vs xName on its own figure.
+
+    Return a list of figures and a list of axes.
+    """
     colors = ["b", "g", "r", "c", "m", "y", "k"]
     wfig, hfig = sfigsize
     figs = []
@@ -113,10 +126,16 @@ def _plot_all_figures_standalone(data, xName, yNames, sfigsize):
         plt.legend(loc="upper left")
         plt.xlabel(xName)
     plt.show()
+
     return figs, axs
 
 
 def _plot_figure_all_in_one(data, xName, yNames, sfigsize):
+    """
+    Plot each channel in yNames vs xName in one figure (all superimposed).
+
+    Return a figure and its axes
+    """
     wfig, hfig = sfigsize
     fig, ax = plt.subplots(figsize=(wfig, hfig))
     for yName in yNames:
@@ -128,12 +147,19 @@ def _plot_figure_all_in_one(data, xName, yNames, sfigsize):
 
 
 def _plot_figures_in_a_grid(data, xName, yNames, sfigsize):
+    """
+    Plot each channel in yNames vs xName in one grid .
+
+    Return a figure, a grid and its axes
+    """
     colors = ["b", "g", "r", "c", "m", "y", "k"]
     wfig, hfig = sfigsize
     nAxes = len(yNames)
+
     # Organizing multiplots such that the figure is as square as possible
     nRow = math.floor(math.sqrt(nAxes))
     nCol = math.ceil(nAxes/nRow)
+
     # Vector of 2D indexes of the grid in order to use a single loop later
     gridIdxs = [[i, j] for i in range(nRow) for j in range(nCol)]
     wr = [wfig]*nCol
@@ -154,7 +180,11 @@ def _plot_figures_in_a_grid(data, xName, yNames, sfigsize):
 
 def _plot_figure_along_multi_files(
         Nanonisfiles, xName, yNames, keepFigure, sfigsize):
+    """
+    Plot each channel in yNames vs xName among multiple files.
 
+    Return a figure or a list of figures
+    """
     colors = ["b", "g", "r", "c", "m", "y", "k"]
     wfig, hfig = sfigsize
     nAxes = len(yNames)
@@ -206,18 +236,25 @@ def _plot_figure_along_multi_files(
 
 
 def _plot1Ddata(Nanonisfile, xChn, yChns, keepAxes, keepFigure, sfigsize):
-    # the order of the _handle_input functions must occur after _handle_input_3
+    """
+    Plot 1D data Series in different ways bycalling the proper function.
+
+    The Called functions are chosen accordingly with the input parameters.
+
+    Return a figure or a list of figures
+    """
+    # the order of the _check_input functions must occur after _check_input_3
     xName, yNames, keepAxes, keepFigure = check_inputs(
             Nanonisfile, xChn, yChns, keepAxes, keepFigure, sfigsize)
     data = Nanonisfile.data
-    
 
     # plot accordingly with keepFigure amd keepAxes
     if keepFigure:
         if keepAxes:
             fig, ax = _plot_figure_all_in_one(data, xName, yNames, sfigsize)
         else:
-            fig, grid, ax = _plot_figures_in_a_grid(data, xName, yNames, sfigsize)
+            fig, grid, ax = _plot_figures_in_a_grid(data, xName,
+                                                    yNames, sfigsize)
     else:
         if keepAxes:
             warn("If the keepFigure variable is False, each selected data will"
@@ -227,11 +264,11 @@ def _plot1Ddata(Nanonisfile, xChn, yChns, keepAxes, keepFigure, sfigsize):
                  )
         # notice that in this case fig is a list of figures
         fig, ax = _plot_all_figures_standalone(data, xName, yNames, sfigsize)
-    
+
     # removing extra columns of indexes added in case of missing XChn input
     if '#Index' in data.keys():
         del data['#Index']
-        
+
     if type(fig) == list:
         for fig in fig:
             fig.canvas.set_window_title(f'{Nanonisfile.metadata["File name"]}')
@@ -242,27 +279,36 @@ def _plot1Ddata(Nanonisfile, xChn, yChns, keepAxes, keepFigure, sfigsize):
 
 def _plot1Ddata_along_multi_files(Nanonisfiles, xChn, yChns,
                                   keepAxes, keepFigure, sfigsize):
+    """
+    Plot 1D data along multiple files by calling the proper function.
 
-    # Check the nanonisfiles contain the channels the user has used as input 
+    The Called functions are chosen accordingly with the input parameters.
+
+    Return a figure or a list of figures
+    """
+    # Check the nanonisfiles contain the channels the user has used as input
     for Nanonisfile in Nanonisfiles:
         xName, yNames, keepAxes, keepFigure = check_inputs(
                 Nanonisfile, xChn, yChns, keepAxes, keepFigure, sfigsize)
-        
-    keepAxes = _handle_input_4(keepAxes)
-    keepFigure = _handle_input_5(keepFigure)
-    sfigsize = _handle_input_6(sfigsize)
-    
+
+    keepAxes = _check_input_4(keepAxes)
+    keepFigure = _check_input_5(keepFigure)
+    sfigsize = _check_input_6(sfigsize)
+
     if keepAxes:
         figs = _plot_figure_along_multi_files(
             Nanonisfiles, xName, yNames, keepFigure, sfigsize)
     else:
         figs = [plotSingleFile(
-            Nanonisfile, xName, yNames, keepAxes,keepFigure, sfigsize)
-            for Nanonisfile in Nanonisfiles]  
+            Nanonisfile, xName, yNames, keepAxes, keepFigure, sfigsize)
+            for Nanonisfile in Nanonisfiles]
+
     return figs
+
 
 # It needed to perform a plot of y vs x chosen channels #
 def _plot2Ddata(Nanonisfile, yChns):
+    """Plot 2D data (images) - Not available."""
     pass
 
 
@@ -282,6 +328,7 @@ def plotSingleFile(
                                         multiple channels to plot in Y-axis.
         keepAxes(boolean or str='False' or 'True') --> option for plotting
                                                 all graphs in a set of axes.
+
     Returns
     -------
     fig --> figure object (see matlibplot.figure module).
@@ -297,8 +344,7 @@ def plotSingleFile(
 
 def plotMultiFiles(
         Nanonisfiles, xChn=None, yChns='all',
-        keepAxes=False, keepFigure=False, sfigsize=(3.2, 2)
-        ):
+        keepAxes=False, keepFigure=False, sfigsize=(3.2, 2)):
     """
     Plot multiple files structured in Nanonisfile class.
 
@@ -312,6 +358,7 @@ def plotMultiFiles(
                                         multiple channels to plot in Y-axis.
         keepAxes(boolean or str='False' or 'True') --> option for plotting
                                                 all graphs in a set of axes.
+
     Returns
     -------
     figs --> list of figure objects (see matlibplot.figure module).
@@ -319,7 +366,7 @@ def plotMultiFiles(
     """
     f_ext = []
     for Nanonisfile in Nanonisfiles:
-        f_ext.append(_handle_input_1(Nanonisfile).metadata['File extension'])
+        f_ext.append(_check_input_1(Nanonisfile).metadata['File extension'])
 
     if f_ext.count(".dat") == len(f_ext):
         key = ".dat"

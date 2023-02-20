@@ -1,11 +1,13 @@
-#from Pynanolib import load
-import load
+from src import load
 import numpy as np
-import math
 from warnings import warn
 
+
+global processAllowed, expTypesAllowed
+
+
 def _normalization(data, dataRef):
-    return (data -  data.min())/(data.max() - data.min())
+    return (data - data.min())/(data.max() - data.min())
 
 
 def _standardization(data, dataRef):
@@ -24,8 +26,8 @@ def _differentiation(data, dataRef):
     data = np.diff(data)
     warn(
         "Warning....The process Differentiation does not reduce by 1"
-         " the dimension of the array processed. The last element is"
-         " indeed a copy of the second last.")
+        " the dimension of the array processed. The last element is"
+        " indeed a copy of the second last.")
     return np.append(data, data[-1])
 
 
@@ -53,9 +55,9 @@ processAllowed = {
 
 
 expTypesAllowed = [
-                    "CLAMPoints-dat", 
-                    "bias spectroscopy", 
-                    "History Data", 
+                    "CLAMPoints-dat",
+                    "bias spectroscopy",
+                    "History Data",
                     "Sweep",
                     "Oscilloscope",
                     "Z spectroscopy",
@@ -65,7 +67,7 @@ expTypesAllowed = [
                     "SFEM"]
 
 
-def _handle_input_1(Nanonisfile):
+def _check_input_1(Nanonisfile):
     if not isinstance(Nanonisfile, load.Nanonisfile):
         raise Exception(
             f"The first input {Nanonisfile} is not a Nanonisfile Object"
@@ -74,20 +76,20 @@ def _handle_input_1(Nanonisfile):
     return Nanonisfile
 
 
-def _handle_input_2(processType):
+def _check_input_2(processType):
     if not(processType in processAllowed.keys()):
         raise Exception('The processType must be one of the following: '
                         f'{processAllowed.keys()}')
     return processType
 
 
-def _handle_input_3(data, chnsToProc):
+def _check_input_3(data, chnsToProc):
     allchns = list(data.keys())
     if chnsToProc is True or chnsToProc is False:
         raise Exception(
             'The parameter chnsToProc must be a list of column names,'
-            'a list of idexes, or a string == all')
-    if chnsToProc == 'all' :
+            'a list of idexes, or a string==all')
+    if chnsToProc == 'all':
         chnsToProc = allchns
     elif chnsToProc in allchns:
         chnsToProc = [chnsToProc]
@@ -97,12 +99,12 @@ def _handle_input_3(data, chnsToProc):
         chnsToProc = [allchns[i] for i in chnsToProc]
     else:
         raise Exception(
-            'The parameter chnsToProc must be a list of column names,'
-            'a list of integers, or a string == all')
+            f'The parameter {chnsToProc} must be a list of column names,'
+            'a list of integers, or a string==all')
     return chnsToProc
 
 
-def _handle_input_4(data, ref):
+def _check_input_4(data, ref):
     if ref is True or ref is False:
         raise Exception(
             'The parameter ref must be None or string present in '
@@ -115,47 +117,44 @@ def _handle_input_4(data, ref):
         dataRef = ref
     else:
         raise Exception(
-            'The parameter ref must be None or string present in '
+            f'The parameter {ref} must be None or string present in '
             'the list of the recorded channels names or a number')
     return dataRef
 
 
 def _process_data(dataToProcess, processType, dataRef):
-    """
-    This function calls the process function corresponding to the processType.
-    """
+    """Call the process function corresponding to the processType."""
     return processAllowed[processType](dataToProcess, dataRef)
 
+
 def processSingleFile(
-        Nanonisfile, processType = 'Division', chnsToProc = 'all', ref = None
-        ):
+        Nanonisfile, processType='Division', chnsToProc='all', ref=None):
     """
-    This function processes data of one or more channels from a single 
-    NanonisFile object.
-    
+    Process data of one or more channels from a single NanonisFile object.
+
     The process can be a stand alone process such as differenciation or scaling
     or it can be with respect to a reference channel or number(ref).
-    
-    The resulting processed data is added on a new channel of the Nanonisfile 
+
+    The resulting processed data is added on a new channel of the Nanonisfile
     object.
-    
+
     INPUT
     ---------------------------------------------------------------------------
-    Nanonisfile : (Nanonisfile object of class Nanonisfile) ->  
-    the attribute 'data' of such a class is a dict containing the channel 
+    Nanonisfile : (Nanonisfile object of class Nanonisfile) ->
+    the attribute 'data' of such a class is a dict containing the channel
     names as keys and data as values.
-    
+
     processType: (str) -> corresponds to the name of the process to apply
-    
+
     chnsToProc : (str) ->  can be 'all' or a channel name
                  (list) -> can be list of channel names or channel indexes
     ref : (str) -> can be the name of a channel
           (number) -> can be a number
     """
-    data = _handle_input_1(Nanonisfile).data
-    processType = _handle_input_2(processType)
-    chnsToProc = _handle_input_3(data, chnsToProc)
-    dataRef = _handle_input_4(data, ref)
+    data = _check_input_1(Nanonisfile).data
+    processType = _check_input_2(processType)
+    chnsToProc = _check_input_3(data, chnsToProc)
+    dataRef = _check_input_4(data, ref)
 
     # each channel is processed by procesType with/without respect to ref
     for chn in chnsToProc:
@@ -169,5 +168,7 @@ def processSingleFile(
             newDataName = f"{chn} {processType} by {str(ref)}"
         Nanonisfile.data.update({newDataName: dataProcessed})
 
+
 def processMultiFiles():
+    """Process multiple files at the same time. Not available."""
     pass

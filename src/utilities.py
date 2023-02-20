@@ -1,8 +1,10 @@
 import numpy as np
 
+
 def peak_detection(array, window, new_point_weight, threshold):
     """
     Peak detection algoritm inspired by: Brakel, J.P.G. van (2014).
+
     "Robust peak detection algorithm using z-scores". Stack Overflow.
     https://stackoverflow.com/questions/22583391/peak-signal-detection-in-
     realtime-timeseries-data/22640362#22640362 (version: 2020-11-08)

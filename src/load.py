@@ -33,7 +33,7 @@ class Nanonisfile:
     """
 
     global nanonis_flags
-    nanonis_flags = {'.sxm' :'SCANIT_END', '.dat':'[DATA]'}
+    nanonis_flags = {'.sxm': 'SCANIT_END', '.dat': '[DATA]'}
 
     def __init__(self, fpfname):
         self._ffname = fpfname
@@ -48,16 +48,17 @@ class Nanonisfile:
         _, type_f = os.path.splitext(self._ffname)
         lastmdate_f = time.ctime(os.path.getmtime(self._ffname))
         try:
-            cdate_f = time.ctime(os.path.getctime(self._ffname)) #for windows
+            # for windows
+            cdate_f = time.ctime(os.path.getctime(self._ffname))
         except:
             try:
+                # for IOS
                 stat = os.stat(self._ffname)
-                cdate_f = time.ctime(stat.st_birthtime) # for IOS 
+                cdate_f = time.ctime(stat.st_birthtime)
             except AttributeError:
-                # We're probably on Linux. No easy way to get creation dates here,
+                # We're probably on Linux. No easy way to get creation date,
                 # so we'll settle for when its content was last modified.
-                cdate_f = lastmdate_f 
-
+                cdate_f = lastmdate_f
         metadata = {'File name': base_fname,
                     'File directory': directory_fname,
                     'File size': size_f,
@@ -68,9 +69,10 @@ class Nanonisfile:
 
     def _get_header(self):
         fname_ext = self.metadata['File extension']
-        
-        if fname_ext not in ['.sxm','.dat']:
-            raise UnhandledFileError('{} is not a supported filetype or does not exist'.format(fname_ext))
+
+        if fname_ext not in ['.sxm', '.dat']:
+            raise UnhandledFileError(
+                f"{fname_ext} is not a supported filetype or does not exist")
 
         tag = nanonis_flags[fname_ext]
 
@@ -96,20 +98,20 @@ class Nanonisfile:
             raise FileHeaderNotFoundError(
                     'Could not find the {} end tag in {}'.format(tag, self._ffname)
                     )
-        
+
         if fname_ext == '.dat':
             header = _parse_dat_header(header)
-            
+           
         elif fname_ext == '.sxm':
             header = _parse_sxm_header(header)            
-        
+
         return header
-    
+
     def _get_data(self):
         fname_ext = self.metadata['File extension']
         
         if fname_ext not in ['.sxm','.dat']:
-            raise UnhandledFileError('{} is not a supported filetype or does not exist'.format(fname_ext))
+            raise UnhandledFileError(f'{fname_ext} is not a supported filetype or does not exist')
 
         data = _load_data(self._ffname, self.metadata['File extension'], self._dataflag, self.header)
         return data
@@ -226,7 +228,7 @@ def _parse_dat_header(header_raw):
 
     Each key-value pair is separated by '\t' characters. Values may be
     further delimited by more '\t' characters.
-    
+
     Inputs
     ----------
     header_raw : str
@@ -234,7 +236,7 @@ def _parse_dat_header(header_raw):
 
     Returns
     -------
-    dict : 
+    dict :
         Parsed point spectroscopy header.
     """
 
@@ -264,7 +266,7 @@ def _load_data(filename, file_ext, dataflag, header):
                     way data are loaded.
         dataflag --> flag that delimitates header from data.
         header --> header usefull for retrive data structure in sxm files.
-    
+
     Returns
     -------
     dict
@@ -274,20 +276,21 @@ def _load_data(filename, file_ext, dataflag, header):
 
     # load .dat files
     if file_ext == '.dat':
-    
+
         # done differently since data is ascii, not binary
-        with open(filename,'r') as f:
+        with open(filename, 'r') as f:
             f.seek(dataflag)
             data_dict = dict()
             column_names = f.readline().strip('\n').split('\t')
 
         num_lines = _num_header_lines(filename)
-        specdata = np.genfromtxt(filename, delimiter='\t', skip_header=num_lines)
-    
+        specdata = np.genfromtxt(filename, delimiter='\t',
+                                 skip_header=num_lines)
+
         for i, name in enumerate(column_names):
             data_dict[name] = specdata[:, i]
-            
-    #### load .sxm files
+
+    # load .sxm files
     elif file_ext == '.sxm':
         channs = list(header['data_info']['Name'])
         nchanns = len(channs)
@@ -295,12 +298,11 @@ def _load_data(filename, file_ext, dataflag, header):
 
         # assume both directions for now
         ndir = 2
-
         data_dict = dict()
 
         # open and seek to start of data
-        scandata = np.fromfile(filename, dtype='>f4', offset = dataflag + 4)
-            
+        scandata = np.fromfile(filename, dtype='>f4', offset=dataflag + 4)
+
         # reshape
         scandata_shaped = scandata.reshape(nchanns, ndir, ny, nx)
 
@@ -311,12 +313,12 @@ def _load_data(filename, file_ext, dataflag, header):
             data_dict[chann] = chann_dict
 
     return data_dict
-    
+
 def _num_header_lines(fname):
-    """Number of lines the header is composed of"""
+    """Number of lines the header is composed of."""
     with open(fname, 'r') as f:
         data = f.readlines()
         for i, line in enumerate(data):
             if nanonis_flags['.dat'] in line:
                 return i + 2  # add 2 to skip the tag itself and column names
-    return 0    
+    return 0
